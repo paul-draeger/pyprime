@@ -7,6 +7,7 @@ Python package for the pyprime analysis library.
 ```bash
 python -m pip install -e . --no-deps
 ```
+using `--no-deps` is recommended within conda environments.
 
 ## Package layout
 
