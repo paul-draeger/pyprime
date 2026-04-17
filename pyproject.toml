@@ -13,16 +13,16 @@ authors = [
   { name = "PyPrime Authors", email = "info@example.com" },
 ]
 dependencies = [
-  "matplotlib==3.10.8",
-  "numpy==2.4.4",
-  "pandas==3.0.2",
-  "paramiko==3.5.0",
-  "pyvista==0.45.0",
-  "scipy==1.17.1",
-  "scp==0.14.1",
-  "Shapely==2.1.2",
-  "sympy==1.13.2",
-  "tqdm==4.67.1",
+  "matplotlib>=3.10,<3.11",
+  "numpy>=1.26,<2.0",
+  "pandas>=3.0,<3.1",
+  "paramiko>=4.0,<4.1",
+  "pyvista>=0.47,<0.48",
+  "scipy>=1.16,<1.17",
+  "scp>=0.15,<0.16",
+  "Shapely>=2.1,<2.2",
+  "sympy>=1.14,<1.15",
+  "tqdm>=4.67,<5.0",
 ]
 
 [tool.setuptools]
