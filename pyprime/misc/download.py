@@ -1,9 +1,7 @@
 import paramiko
-from ..paths import Spath
 import os
 from tqdm import tqdm  #
 import stat
-from ..AMP.amp_functions import sort_files
 import concurrent.futures
 
 

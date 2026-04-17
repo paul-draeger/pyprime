@@ -1,6 +1,5 @@
 import os
 import shutil
-from ..paths import Spath
 
 
 def configurations_to_git():

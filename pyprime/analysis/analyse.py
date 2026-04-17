@@ -13,7 +13,6 @@ from .sim import sim
 from scipy.fft import fft
 from scipy.spatial import Voronoi
 from scipy.spatial import ConvexHull
-from ..AMP.amp_functions import extract_numeric
 import os
 import random
 

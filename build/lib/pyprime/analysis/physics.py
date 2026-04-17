@@ -4,11 +4,6 @@ from scipy import interpolate
 from scipy.special import sph_harm
 import matplotlib.pyplot as plt
 import os
-from ..paths import convergence_times
-from ..paths import VoroNt
-from ..paths import VoroNR
-from ..paths import correction_times
-from ..paths import end_time_step
 import shutil
 import time
 from .ssh_functions import ssh_get_files
