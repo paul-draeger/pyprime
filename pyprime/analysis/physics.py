@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import os
 import shutil
 import time
-from .ssh_functions import ssh_get_files
 import re
 import sympy as sp
 

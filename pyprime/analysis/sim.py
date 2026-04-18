@@ -15,7 +15,8 @@ from scipy.special import sph_harm
 import matplotlib.pyplot as plt
 import shutil
 import time
-from .ssh_functions import ssh_get_files
+from ..hpcsync.ssh_functions import ssh_get_files
+from ..hpcsync.ssh_functions import ssh_download_sim
 import re
 from .physics import prop
 import os
@@ -35,7 +36,6 @@ class sim:
         # onlyInfo    - object contains only minimal information
         rpath = ''
         if not ssh_pass=='local':
-            from .ssh_functions import ssh_download_sim
             #if newbubble==1 or newbinary==1:
                 #print('HEY')
             path, rpath = ssh_download_sim(path,ssh_pass,ssh_download_fluid, ssh_update, bub_fp = get_bub_fp)

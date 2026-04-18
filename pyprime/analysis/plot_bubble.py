@@ -10,11 +10,9 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.ticker import MaxNLocator
 from .analyse import analyse_Re
 from matplotlib import rc
-from . import correlations as corr
 import os
 from scipy.spatial import ConvexHull
 from scipy.spatial import Delaunay
-from .plot import colors
 
 from scipy.special import sph_harm
 from scipy.spatial import SphericalVoronoi, geometric_slerp
@@ -392,7 +390,7 @@ def bub3d(s1,I,extra='coll',off_screen=True,path='',TeleyP=0, box=True, add_bcon
 
     for ibub in range(1,s1.bNr+1):
         print(f'- Plotting {ibub:d}/{s1.bNr:d}')
-        bclr = colors().plclr[ibub-1]
+        bclr = "w"
         b1 = s1.b(ibub)
         if I!=0 and extra!="cnm" and extra!='cnmB':
             points = b1.fp(I,s1)

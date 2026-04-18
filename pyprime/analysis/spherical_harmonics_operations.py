@@ -10,11 +10,9 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.ticker import MaxNLocator
 from .analyse import analyse_Re
 from matplotlib import rc
-from . import correlations as corr
 import os
 from scipy.spatial import ConvexHull
 from scipy.spatial import Delaunay
-from .plot import colors
 
 from scipy.special import sph_harm
 from scipy.spatial import SphericalVoronoi, geometric_slerp

@@ -1,0 +1,9 @@
+{
+  "barnard1": {
+    "hostname": "dataport1.hpc.tu-dresden.de",
+    "port": 22,
+    "username": "YOUR_USERNAME",
+    "remote_file_path": "/path/to/workspace/",
+    "local_filesystem": "/path/to/local/mirror/"
+  }
+}
