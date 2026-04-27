@@ -8,6 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 from typing import Iterable
+import os
 
 from tqdm import tqdm
 
@@ -52,15 +53,36 @@ def sort_files(files: Iterable[str]) -> list[str]:
 # ssh / rsync helpers
 # ============================================================
 
-def _get_ssh_info(ssh_pass, output: bool = False):
+def _get_remote_info(ssh_pass, output: bool = False):
     """
     Expected from get_online_pass:
-        hostname, port, username, remote_file_path, local_filesystem
+        hostname, port, username, remote_file_path, local_filesystem[, sshhost]
+
+    If sshhost is not provided, hostname is also used for ssh.
     """
-    hostname, port, username, remote_file_path, local_filesystem = get_online_pass(
-        ssh_pass, output=output
-    )
-    return hostname, port, username, remote_file_path, local_filesystem
+    info = get_online_pass(ssh_pass, output=output)
+
+    if len(info) == 5:
+        hostname, port, username, remote_file_path, local_filesystem = info
+        sshhost = hostname
+        print('Hello, HERE')
+    elif len(info) == 6:
+        hostname, sshhost, port, username, remote_file_path, local_filesystem = info
+    else:
+        raise ValueError(
+            "get_online_pass must return 5 values "
+            "(hostname, port, username, remote_file_path, local_filesystem) "
+            "or 6 values with sshhost appended."
+        )
+
+    return {
+        "hostname": hostname,          # dataport / rsync host
+        "sshhost": sshhost,            # login node / ssh host
+        "port": port,
+        "username": username,
+        "remote_file_path": remote_file_path,
+        "local_filesystem": local_filesystem,
+    }
 
 
 def _ensure_commands_available() -> None:
@@ -71,7 +93,22 @@ def _ensure_commands_available() -> None:
 
 def _run_command(cmd: list[str]) -> None:
     print("Running:", " ".join(shlex.quote(c) for c in cmd))
-    subprocess.run(cmd, check=True)
+
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+
+    assert proc.stdout is not None
+    for line in proc.stdout:
+        print(line, end="", flush=True)
+
+    ret = proc.wait()
+    if ret != 0:
+        raise subprocess.CalledProcessError(ret, cmd)
 
 
 def _ssh_base_cmd(port: int) -> list[str]:
@@ -107,9 +144,10 @@ def _rsync(
 
     cmd = [
         "rsync",
-        "-avz",
+        "-avh",
         "--info=progress2",
         "-h",
+        "--partial",
         "-e", ssh_cmd,
     ]
 
@@ -158,15 +196,30 @@ def _scp_download_file(
 
 def _ssh_listdir(
     remote_path: str,
-    hostname: str,
+    sshhost: str,
     port: int,
     username: str,
 ) -> list[str]:
+    remote_cmd = f"""
+        if [ ! -d {shlex.quote(remote_path)} ]; then
+            echo "ERROR: directory does not exist: {remote_path}" >&2
+            exit 2
+        fi
+        ls -1 {shlex.quote(remote_path)}
+    """.strip()
+
     cmd = _ssh_base_cmd(port) + [
-        f"{username}@{hostname}",
-        f"find {shlex.quote(remote_path)} -maxdepth 1 -type f -printf '%f\\n'",
+        f"{username}@{sshhost}",
+        remote_cmd,
     ]
-    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+
+    result = subprocess.run(
+        cmd,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
@@ -181,9 +234,10 @@ def ssh_download_sim(
     ssh_update: bool = True,
     bub_fp: bool = False,
 ):
-    hostname, port, username, remote_file_path, local_filesystem = _get_ssh_info(ssh_pass)
+    remote = _get_remote_info(ssh_pass)
 
-    local_filesystem = Path(local_filesystem)
+    remote_file_path = remote["remote_file_path"]
+    local_filesystem = Path(remote["local_filesystem"])
     local_filesystem.mkdir(parents=True, exist_ok=True)
 
     path_id_dict = local_filesystem / "id_dict.json"
@@ -242,7 +296,11 @@ def ssh_get_fluid(i, ssh_pass, lpath, rpath):
 
 
 def download_directory(remote_path, local_path, ssh_pass, pics: bool = False, bub_fp: bool = False):
-    hostname, port, username, _, _ = _get_ssh_info(ssh_pass, output=False)
+    remote = _get_remote_info(ssh_pass, output=False)
+
+    hostname = remote["hostname"]   # dataport for rsync/scp
+    port = remote["port"]
+    username = remote["username"]
 
     exclude_names = [
         "ellipsoid_trn",
@@ -354,7 +412,12 @@ def download_fluid(rpath, lpath, ssh_pass, I: int = -1):
     I = 0   -> all fluid files
     I = n   -> only files whose numeric index equals n
     """
-    hostname, port, username, _, _ = _get_ssh_info(ssh_pass)
+    remote = _get_remote_info(ssh_pass)
+
+    hostname = remote["hostname"]   # dataport for rsync/scp
+    sshhost = remote["sshhost"]     # login node for ssh ls
+    port = remote["port"]
+    username = remote["username"]
 
     fluid_remote = str(Path(rpath) / "fluid")
     fluid_local = Path(lpath) / "fluid"
@@ -389,40 +452,32 @@ def download_fluid(rpath, lpath, ssh_pass, I: int = -1):
             return
 
         remote_files = _ssh_listdir(
-            fluid_remote,
-            hostname=hostname,
+            remote_path=fluid_remote,
+            sshhost=sshhost,
             port=port,
             username=username,
         )
 
-        for fl in tqdm(sort_files(remote_files), desc="Fluid files", unit="file"):
-            if fl in {"x.dat", "y.dat", "z.dat"}:
-                remote_file = str(Path(fluid_remote) / fl)
-                local_file = fluid_local / fl
-                if not local_file.exists():
-                    print(f"Downloading fluid data - {fl}")
-                    _scp_download_file(
-                        remote_file=remote_file,
-                        local_file=local_file,
-                        hostname=hostname,
-                        port=port,
-                        username=username,
-                    )
-                continue
+        print(f"Downloading fluid files for index {I}...")
 
-            fl_id = extract_numeric(fl)
-            if fl_id == I:
-                remote_file = str(Path(fluid_remote) / fl)
-                local_file = fluid_local / fl
-                if not local_file.exists():
-                    print(f"Downloading fluid data - {fl}")
-                    _scp_download_file(
-                        remote_file=remote_file,
-                        local_file=local_file,
-                        hostname=hostname,
-                        port=port,
-                        username=username,
-                    )
+        idx = f"{I:06d}"
+
+        _rsync(
+            remote_source=fluid_remote,
+            local_target=fluid_local,
+            hostname=hostname,
+            port=port,
+            username=username,
+            include_only=[
+                "x.dat",
+                "y.dat",
+                "z.dat",
+                f"*_{idx}.bin",
+                f"*_{idx}.bin.info",
+            ],
+            update_existing=True,
+            delete=False,
+        )
 
     except subprocess.CalledProcessError as e:
         print(f"Command failed: {e}")
@@ -431,7 +486,11 @@ def download_fluid(rpath, lpath, ssh_pass, I: int = -1):
 
 
 def ssh_get_files(sim, files):
-    hostname, port, username, _, _ = _get_ssh_info(sim.ssh_pass)
+    remote = _get_remote_info(sim.ssh_pass)
+
+    hostname = remote["hostname"]
+    port = remote["port"]
+    username = remote["username"]
 
     if not isinstance(files, list):
         files = [files]

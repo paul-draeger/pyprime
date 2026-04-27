@@ -647,7 +647,382 @@ def bub_snapshot(s1,I,off_screen=True,path='',uref=2, value='v',Fsize=4,TeleyP=0
     plg.show(screenshot=Ppath+f'/film_{I:04d}.png')
 
 
-def sph_add_mesh(s1,it,plg,NF=12,NLag=10000,bubi = 1,opa=1,switch_xy=True,Nc=100,pLz=False, offx=0, offy=0,multi=1,lam_max = 1.5,grid_color='k',cut0=[np.nan,np.nan,np.nan],cutn=[0,0,0],newt=False):
+
+def sph_add_mesh_H(s1,it,plg,NF=12,NFi=-1,NLag=10000,bubi = 1,opa=1,switch_xy=True, grid=True, climH=[-1,1],Nc=10,pLz=False, from_time=-1, offx=0, offy=0,multi=1,lam_max = 1.5,grid_color='k',cut0=[np.nan,np.nan,np.nan],cutn=[0,0,0],newt=False,color='white'):
+    import pyvista as pv
+    if not newt:
+        cnm_path = s1.resultpath + f'/bubble/bub_{bubi:03d}_cnm_pnt.bin'
+        with open(cnm_path, 'rb') as fin:
+            A = np.fromfile(fin, dtype=np.float64,offset=4)
+        NL1 = (NF+1)*(NF+2)/2
+        NL = NL1*2
+        NL = round(NL) + 2
+        Ncof = round ( NL*3 )
+        lA = len(A)
+        maxcoef = lA%Ncof
+        A = A[0:-maxcoef]
+        cnm = np.reshape(A,[-1,Ncof])
+        cnmx = cnm[:,0:NL]
+        cnmy = cnm[:,NL:(2*NL)]
+        cnmz = cnm[:,(2*NL):(3*NL)]
+        NLh = round(NL/2)
+    else:
+        cnm_path = s1.resultpath + f'/bubble/bub_{bubi:03d}_cnm_pnt.bin'
+        with open(cnm_path, 'rb') as fin:
+            A = np.fromfile(fin, dtype=np.float64,offset=4)
+        NL1 = (NF+1)*(NF+2)/2
+        NL = NL1*2
+        NL = round(NL) + 2
+        Ncof = round ( NL*3 ) + 2
+        lA = len(A)
+        maxcoef = lA%Ncof
+        A = A[0:-maxcoef]
+        cnm = np.reshape(A,[-1,Ncof])
+        t0 = cnm[:,0]
+        cnm0 = cnm[:,2:]
+        print(t0)
+        cnmx = cnm0[:,0:NL]
+        cnmy = cnm0[:,NL:(2*NL)]
+        cnmz = cnm0[:,(2*NL):(3*NL)]
+        NLh = round(NL/2)
+
+        if from_time>=0:
+            it = np.argmin(np.abs(t0-from_time))
+            print(f"Selected time: {t0[it]} at index {it}")
+
+
+
+    print(np.shape(cnmx))
+    anmxR = cnmx[ : , 0:NLh           ]
+    anmxI = cnmx[ : , NLh:(2*NLh)     ]
+    anmyR = cnmy[ : , 0:NLh           ]
+    anmyI = cnmy[ : , NLh:(2*NLh)     ]
+    anmzR = cnmz[ : , 0:NLh           ]
+    anmzI = cnmz[ : , NLh:(2*NLh)     ]
+
+    for n in range(0,NF+1):
+        Zh = round(n*(n+1)/2)
+        anmxR[:,Zh] = 0.5 * anmxR[:,Zh]
+        anmyR[:,Zh] = 0.5 * anmyR[:,Zh]
+        anmzR[:,Zh] = 0.5 * anmzR[:,Zh]
+
+    NL = NLag
+    #TT,PP, faces, regions = fibonacci_sphere(NL,new=False)
+    Nlx = round(np.sqrt(NL))
+    NL = Nlx**2
+    pc = np.linspace(0,np.pi*2,Nlx)
+    tc = np.linspace(0,np.pi,Nlx)
+    #dpc = np.pi*2/Nlx
+    #dtc = np.pi/round(Nlx/2)
+    #pc = np.mod(pc+dpc/2,2*np.pi)
+    #tc = np.mod(tc+dtc/2,np.pi)
+    tc[-1] = np.pi-1E-10
+    tc[0] = 1E-10
+    TT,PP = np.meshgrid(tc,pc)
+    dP = 2*np.pi / Nlx
+    dT = np.pi / round(Nlx/2)
+    wi = dT*dP*np.sin(TT)
+    Naa = 0
+
+    if NFi==-1: NFi=NF
+
+    valx = np.zeros_like(TT)
+    valy = np.zeros_like(TT)
+    valz = np.zeros_like(TT)
+
+    valxT = np.zeros_like(TT)
+    valyT = np.zeros_like(TT)
+    valzT = np.zeros_like(TT)
+
+    valxP = np.zeros_like(TT)
+    valyP = np.zeros_like(TT)
+    valzP = np.zeros_like(TT)
+
+    valxTT = np.zeros_like(TT)
+    valyTT = np.zeros_like(TT)
+    valzTT = np.zeros_like(TT)
+
+    valxPP = np.zeros_like(TT)
+    valyPP = np.zeros_like(TT)
+    valzPP = np.zeros_like(TT)
+
+    valxTP = np.zeros_like(TT)
+    valyTP = np.zeros_like(TT)
+    valzTP = np.zeros_like(TT)
+
+    Ysh, Ydp, Ydt, Ydtt, Ydpp, Ydtp = compute_spherical_harmonics_2d(NF, TT, PP, 1 ,1 )
+
+    print('Hey')
+    for n in range(0,NFi+1):
+        Zh = round(n*(n+1)/2)
+
+        for m in range(0,n+1):
+            zz = round( n*(n+1)/2 + m )
+            cnmxii = complex( anmxR[it,zz], anmxI[it,zz] )
+            cnmyii = complex( anmyR[it,zz], anmyI[it,zz] )
+            cnmzii = complex( anmzR[it,zz], anmzI[it,zz] )
+
+            valxi =  cnmxii * Ysh[zz,:,:]
+            valyi =  cnmyii * Ysh[zz,:,:]
+            valzi =  cnmzii * Ysh[zz,:,:]
+
+            valx += np.real( valxi )
+            valy += np.real( valyi )
+            valz += np.real( valzi )
+
+            valxiT =  cnmxii *Ydt[zz,:,:]#* Ysh
+            valyiT =  cnmyii *Ydt[zz,:,:]#* Ysh
+            valziT =  cnmzii *Ydt[zz,:,:]#* Ysh
+
+            valxiP =  cnmxii *Ydp[zz,:,:]#* Ysh
+            valyiP =  cnmyii *Ydp[zz,:,:]#* Ysh
+            valziP =  cnmzii *Ydp[zz,:,:]#* Ysh
+
+            valxT += np.real( valxiT )
+            valyT += np.real( valyiT )
+            valzT += np.real( valziT )
+
+            valxP += np.real( valxiP )
+            valyP += np.real( valyiP )
+            valzP += np.real( valziP )
+
+            valxiTT =  cnmxii *Ydtt[zz,:,:]#* Ysh
+            valyiTT =  cnmyii *Ydtt[zz,:,:]#* Ysh
+            valziTT =  cnmzii *Ydtt[zz,:,:]#* Ysh
+
+            valxiPP =  cnmxii *Ydpp[zz,:,:]#* Ysh
+            valyiPP =  cnmyii *Ydpp[zz,:,:]#* Ysh
+            valziPP =  cnmzii *Ydpp[zz,:,:]#* Ysh
+
+            valxiTP =  cnmxii *Ydtp[zz,:,:]#* Ysh
+            valyiTP =  cnmyii *Ydtp[zz,:,:]#* Ysh
+            valziTP =  cnmzii *Ydtp[zz,:,:]#* Ysh
+
+            valxTT += np.real( valxiTT )
+            valyTT += np.real( valyiTT )
+            valzTT += np.real( valziTT )
+
+            valxPP += np.real( valxiPP )
+            valyPP += np.real( valyiPP )
+            valzPP += np.real( valziPP )
+
+            valxTP += np.real( valxiTP )
+            valyTP += np.real( valyiTP )
+            valzTP += np.real( valziTP )
+
+
+    valx = valx*2
+    valy = valy*2
+    valz = valz*2
+
+    valxT = valxT*2
+    valyT = valyT*2
+    valzT = valzT*2
+
+    valxP = valxP*2
+    valyP = valyP*2
+    valzP = valzP*2
+
+    valxTT = valxTT*2
+    valyTT = valyTT*2
+    valzTT = valzTT*2
+
+    valxPP = valxPP*2
+    valyPP = valyPP*2
+    valzPP = valzPP*2
+
+    valxTP = valxTP*2
+    valyTP = valyTP*2
+    valzTP = valzTP*2
+
+
+    g_kov = np.zeros([2,2,np.shape(TT)[0],np.shape(TT)[1] ])
+
+    g_kov[0,0,:,:] = valxT**2 + valyT**2 + valzT**2
+    g_kov[0,1,:,:] = valxT*valxP + valyT*valyP + valzT*valzP
+    g_kov[1,1,:,:] = valxP**2 + valyP**2 + valzP**2
+    g_kov[1,0,:,:] = g_kov[0,1,:,:]
+
+    detg = g_kov[0,0,:,:]*g_kov[1,1,:,:] - g_kov[0,1,:,:]*g_kov[1,0,:,:]
+    S = np.sum(np.sqrt(detg)*wi)
+
+    b1 = s1.b(bubi)
+    R0 = b1.r
+
+    GR_kon = np.zeros([2,2,np.shape(TT)[0],np.shape(TT)[1] ])
+    GR_kon[0,0,:,:] = 1/R0**2
+    GR_kon[1,1,:,:] = 1/(R0**2 * np.sin(TT)**2)
+    detgR = 1/(R0**4 * np.sin(TT)**2)
+
+    trC = GR_kon[0,0,:,:]*g_kov[0,0,:,:] + GR_kon[1,1,:,:]*g_kov[1,1,:,:]
+    I2 = detg * detgR
+    JS = np.sqrt( I2 )
+
+    I1 = g_kov[0,0,:,:]*GR_kon[0,0,:,:] + g_kov[1,1,:,:]*GR_kon[1,1,:,:]
+
+    lambda_m = np.sqrt( I1/2.0 + np.sqrt(I1**(2.0)/4.0 - I2) )
+
+    beta = s1.dx/(2*R0)*np.sqrt(b1.nl / np.pi)
+
+    E = valxT**2 + valyT**2 + valzT**2
+    F = valxT*valxP + valyT*valyP + valzT*valzP
+    G = valxP**2 + valyP**2 + valzP**2
+
+    # Normal vector
+    nx = valyT*valzP - valzT*valyP
+    ny = valzT*valxP - valxT*valzP
+    nz = valxT*valyP - valyT*valxP
+
+    n_norm = np.sqrt(nx**2 + ny**2 + nz**2)
+    nx /= n_norm
+    ny /= n_norm
+    nz /= n_norm
+
+
+    # Second derivatives (replace with your known or computed arrays)
+    # e.g., via np.gradient if you don't have them analytically
+    # valxTT, valyTT, valzTT, valxTP, valyTP, valzTP, valxPP, valyPP, valzPP
+
+    # Second fundamental form
+    L = valxTT*nx + valyTT*ny + valzTT*nz
+    M = valxTP*nx + valyTP*ny + valzTP*nz
+    N = valxPP*nx + valyPP*ny + valzPP*nz
+
+    #print(np.shape(L))
+    # Mean curvature
+    H = (E*N - 2*F*M + G*L) / (2*(E*G - F**2))
+
+
+    print('Max. Ratio:')
+    print(np.nanmax(lambda_m/beta))
+
+    xm = np.mean(valx)
+    ym = np.mean(valy)
+    zm = np.mean(valz)
+
+    valx = (valx-xm)*0.999 + xm  + offx
+    valy = (valy-ym)*0.999 + ym  + offy
+    valz = (valz-zm)*0.99 + zm
+
+    if pLz: valz += s1.Lz
+
+    if switch_xy:
+        mesh = pv.StructuredGrid(valx, valy, valz)
+    else:
+        mesh = pv.StructuredGrid(valy, valx, valz)
+
+    mesh.point_data['J_S'] = lambda_m.T.flatten() / beta
+    mesh.point_data['H'] = H.T.flatten()
+    upper_lim = lam_max
+    lambda_limits = (0.5,1.5)#(1/beta,upper_lim)#(upper_lim**(-1), upper_lim)
+
+    bname = f"bubble_{bubi}"
+    if not np.isnan(cut0[0]):
+        mesh  = mesh.clip(normal=cutn, origin=cut0)
+
+    #plg.add_mesh(mesh,scalars='J_S', clim = lambda_limits, cmap = 'YlGnBu',ambient=0.5,diffuse=0.5,specular=0.05,opacity=opa,name=bname,show_edges=False)
+    #plg.add_mesh(mesh,color='white',ambient=0.5,diffuse=0.5,specular=0.05,opacity=opa,name=bname,show_edges=False)
+    #plg.add_mesh(mesh,ambient=0.2,diffuse=0.6,specular=0.05,opacity=opa,name=bname, smooth_shading=True,show_edges=False,color=color)
+    plg.add_mesh(mesh,scalars='H', cmap = 'turbo',clim=climH,ambient=0.5,diffuse=0.5,specular=0.05,opacity=opa,name=bname,show_edges=False)
+    
+    if grid:
+        # Add parameters curves
+        tc = np.linspace(0,np.pi*2,2*Nc*multi+1)
+        pc = np.linspace(0,np.pi,Nc*multi+1)
+        #tc = tc[0:-1]
+        #pc = pc[0:-1]
+        TC,PC = np.meshgrid(tc,pc)
+        valx = np.zeros_like(TC)
+        valy = np.zeros_like(TC)
+        valz = np.zeros_like(TC)
+
+        valx = np.zeros_like(TC)
+        valy = np.zeros_like(TC)
+        valz = np.zeros_like(TC)
+
+        for n in range(0,NF+1):
+            Zh = round(n*(n+1)/2)
+            for m in range(0,n+1):
+                zz = round( n*(n+1)/2 + m  )
+
+                #Ysh, Ydp, Ydpp, Ydt, Ydtt, Ydtp = compute_spherical_harmonics(NF, TC, PC, n ,m)
+                Ysh = sph_harm(m, n, TC, PC)
+                valxi =  complex( anmxR[it,zz], anmxI[it,zz] ) * Ysh
+                valyi =  complex( anmyR[it,zz], anmyI[it,zz] ) * Ysh
+                valzi =  complex( anmzR[it,zz], anmzI[it,zz] ) * Ysh
+
+                valx += np.real( valxi )
+                valy += np.real( valyi )
+                valz += np.real( valzi )
+
+        valx = valx*2
+        valy = valy*2
+        valz = valz*2
+
+        valxT = valxT*2
+        valyT = valyT*2
+        valzT = valzT*2
+
+        valxP = valxP*2
+        valyP = valyP*2
+        valzP = valzP*2
+
+        xm = np.mean(valx)
+        ym = np.mean(valy)
+        zm = np.mean(valz)
+
+        valx = (valx-xm)*0.999 + xm   + offx
+        valy = (valy-ym)*0.999 + ym   + offy
+        valz = (valz-zm)*0.999 + zm
+
+        if pLz: valz += s1.Lz
+
+        #X = np.column_stack([valx.ravel(),valy.ravel(),valz.ravel()])
+        if switch_xy:
+            if multi>1:
+                line_meshes = []
+                #grid = pv.StructuredGrid(valx, valy, valz)
+                for j in range(0, Nc*2):
+                    # take one line along x (fix j,k=0 here for simplicity)
+                    xline = valx[:, j*multi]
+                    yline = valy[:, j*multi]
+                    zline = valz[:, j*multi]
+
+                    pts = np.column_stack([xline, yline, zline])
+                    # build a PolyLine
+                    line = pv.Spline(pts, n_points=len(pts))
+                    tube = line.tube(radius=0.005, n_sides=24, capping=True)
+                    line_meshes.append(tube)
+
+                for j in range(0, Nc):
+                    # take one line along x (fix j,k=0 here for simplicity)
+                    xline = valx[j*multi, :]
+                    yline = valy[j*multi, :]
+                    zline = valz[j*multi, :]
+
+                    pts = np.column_stack([xline, yline, zline])
+                    # build a PolyLine
+                    line = pv.Spline(pts, n_points=len(pts))
+                    tube = line.tube(radius=0.005, n_sides=20, capping=True)
+                    line_meshes.append(tube)
+
+                grid = pv.merge(line_meshes)
+                if not np.isnan(cut0[0]):
+                    grid  = grid.clip(normal=cutn, origin=cut0)
+                plg.add_mesh(grid, color=grid_color, ambient=0.2,line_width=4)
+            else:
+                grid = pv.StructuredGrid(valx, valy, valz)
+        else:
+            grid = pv.StructuredGrid(valy, valx, valz)
+        if not multi>1:
+            plg.add_mesh(grid, show_edges=True,style='wireframe', line_width=5,color=grid_color)  # show_edges=True for gridlines
+
+                #plg.show_grid()  # Add axes grid
+
+
+
+
+def sph_add_mesh(s1,it,plg,NF=12,NFi=-1,NLag=10000,bubi = 1,opa=1,switch_xy=True, grid=True, Nc=10,pLz=False, from_time=-1, offx=0, offy=0,multi=1,lam_max = 1.5,grid_color='k',cut0=[np.nan,np.nan,np.nan],cutn=[0,0,0],newt=False,color='white'):
     import pyvista as pv
 
     if not newt:
@@ -685,6 +1060,10 @@ def sph_add_mesh(s1,it,plg,NF=12,NLag=10000,bubi = 1,opa=1,switch_xy=True,Nc=100
         cnmy = cnm0[:,NL:(2*NL)]
         cnmz = cnm0[:,(2*NL):(3*NL)]
         NLh = round(NL/2)
+
+        if from_time>=0:
+            it = np.argmin(np.abs(t0-from_time))
+            print(f"Selected time: {t0[it]} at index {it}")
 
 
 
@@ -734,7 +1113,8 @@ def sph_add_mesh(s1,it,plg,NF=12,NLag=10000,bubi = 1,opa=1,switch_xy=True,Nc=100
 
     Ysh, Ydp, Ydt = compute_spherical_harmonics(NF, TT, PP, 1 ,1 )
 
-    for n in range(0,NF+1):
+    if NFi==-1: NFi=NF
+    for n in range(0,NFi+1):
         Zh = round(n*(n+1)/2)
 
         for m in range(0,n+1):
@@ -811,9 +1191,9 @@ def sph_add_mesh(s1,it,plg,NF=12,NLag=10000,bubi = 1,opa=1,switch_xy=True,Nc=100
     ym = np.mean(valy)
     zm = np.mean(valz)
 
-    valx = (valx-xm)*0.992 + xm  + offx
-    valy = (valy-ym)*0.992 + ym  + offy
-    valz = (valz-zm)*0.992 + zm
+    valx = (valx-xm)*0.999 + xm  + offx
+    valy = (valy-ym)*0.999 + ym  + offy
+    valz = (valz-zm)*0.99 + zm
 
     if pLz: valz += s1.Lz
 
@@ -822,109 +1202,111 @@ def sph_add_mesh(s1,it,plg,NF=12,NLag=10000,bubi = 1,opa=1,switch_xy=True,Nc=100
     else:
         mesh = pv.StructuredGrid(valy, valx, valz)
 
-    mesh.point_data['J_S'] = lambda_m.T.flatten() / beta
+    mesh.point_data['J_S'] = lambda_m.T.flatten() #/ beta
     upper_lim = lam_max
-    lambda_limits = (1/beta,upper_lim)#(upper_lim**(-1), upper_lim)
+    lambda_limits = (0.5,2.5)#(1/beta,upper_lim)#(upper_lim**(-1), upper_lim)
 
     bname = f"bubble_{bubi}"
     if not np.isnan(cut0[0]):
         mesh  = mesh.clip(normal=cutn, origin=cut0)
 
-    plg.add_mesh(mesh,scalars='J_S', clim = lambda_limits, cmap = 'YlGnBu',ambient=0.5,diffuse=0.5,specular=0.05,opacity=opa,name=bname,show_edges=False)
-    #plg.add_mesh(mesh,color='white',ambient=0.5,diffuse=0.5,specular=0.05,opacity=opa,name=bname,show_edges=False)
+    #plg.add_mesh(mesh,scalars='J_S', clim = lambda_limits, cmap = 'YlGnBu',ambient=0.5,diffuse=0.5,specular=0.05,opacity=opa,name=bname,show_edges=False)
+    plg.add_mesh(mesh,color='white',ambient=0.5,diffuse=0.5,specular=0.05,opacity=opa,name=bname,show_edges=False)
+    #plg.add_mesh(mesh,ambient=0.5,diffuse=0.5,specular=0.05,opacity=opa,name=bname, smooth_shading=True,show_edges=False,color=color)
+    
+    if grid:
+        # Add parameters curves
+        tc = np.linspace(0,np.pi*2,2*Nc*multi+1)
+        pc = np.linspace(0,np.pi,Nc*multi+1)
+        #tc = tc[0:-1]
+        #pc = pc[0:-1]
+        TC,PC = np.meshgrid(tc,pc)
+        valx = np.zeros_like(TC)
+        valy = np.zeros_like(TC)
+        valz = np.zeros_like(TC)
 
-    # Add parameters curves
-    tc = np.linspace(0,np.pi*2,2*Nc*multi+1)
-    pc = np.linspace(0,np.pi,Nc*multi+1)
-    #tc = tc[0:-1]
-    #pc = pc[0:-1]
-    TC,PC = np.meshgrid(tc,pc)
-    valx = np.zeros_like(TC)
-    valy = np.zeros_like(TC)
-    valz = np.zeros_like(TC)
+        valx = np.zeros_like(TC)
+        valy = np.zeros_like(TC)
+        valz = np.zeros_like(TC)
 
-    valx = np.zeros_like(TC)
-    valy = np.zeros_like(TC)
-    valz = np.zeros_like(TC)
+        for n in range(0,NF+1):
+            Zh = round(n*(n+1)/2)
+            for m in range(0,n+1):
+                zz = round( n*(n+1)/2 + m  )
 
-    for n in range(0,NF+1):
-        Zh = round(n*(n+1)/2)
-        for m in range(0,n+1):
-           zz = round( n*(n+1)/2 + m  )
+                #Ysh, Ydp, Ydpp, Ydt, Ydtt, Ydtp = compute_spherical_harmonics(NF, TC, PC, n ,m)
+                Ysh = sph_harm(m, n, TC, PC)
+                valxi =  complex( anmxR[it,zz], anmxI[it,zz] ) * Ysh
+                valyi =  complex( anmyR[it,zz], anmyI[it,zz] ) * Ysh
+                valzi =  complex( anmzR[it,zz], anmzI[it,zz] ) * Ysh
 
-           #Ysh, Ydp, Ydpp, Ydt, Ydtt, Ydtp = compute_spherical_harmonics(NF, TC, PC, n ,m)
-           Ysh = sph_harm(m, n, TC, PC)
-           valxi =  complex( anmxR[it,zz], anmxI[it,zz] ) * Ysh
-           valyi =  complex( anmyR[it,zz], anmyI[it,zz] ) * Ysh
-           valzi =  complex( anmzR[it,zz], anmzI[it,zz] ) * Ysh
+                valx += np.real( valxi )
+                valy += np.real( valyi )
+                valz += np.real( valzi )
 
-           valx += np.real( valxi )
-           valy += np.real( valyi )
-           valz += np.real( valzi )
+        valx = valx*2
+        valy = valy*2
+        valz = valz*2
 
-    valx = valx*2
-    valy = valy*2
-    valz = valz*2
+        valxT = valxT*2
+        valyT = valyT*2
+        valzT = valzT*2
 
-    valxT = valxT*2
-    valyT = valyT*2
-    valzT = valzT*2
+        valxP = valxP*2
+        valyP = valyP*2
+        valzP = valzP*2
 
-    valxP = valxP*2
-    valyP = valyP*2
-    valzP = valzP*2
+        xm = np.mean(valx)
+        ym = np.mean(valy)
+        zm = np.mean(valz)
 
-    xm = np.mean(valx)
-    ym = np.mean(valy)
-    zm = np.mean(valz)
+        valx = (valx-xm)*0.999 + xm   + offx
+        valy = (valy-ym)*0.999 + ym   + offy
+        valz = (valz-zm)*0.999 + zm
 
-    valx = (valx-xm)*0.995 + xm   + offx
-    valy = (valy-ym)*0.995 + ym   + offy
-    valz = (valz-zm)*0.995 + zm
+        if pLz: valz += s1.Lz
 
-    if pLz: valz += s1.Lz
+        #X = np.column_stack([valx.ravel(),valy.ravel(),valz.ravel()])
+        if switch_xy:
+            if multi>1:
+                line_meshes = []
+                #grid = pv.StructuredGrid(valx, valy, valz)
+                for j in range(0, Nc*2):
+                    # take one line along x (fix j,k=0 here for simplicity)
+                    xline = valx[:, j*multi]
+                    yline = valy[:, j*multi]
+                    zline = valz[:, j*multi]
 
-    #X = np.column_stack([valx.ravel(),valy.ravel(),valz.ravel()])
-    if switch_xy:
-        if multi>1:
-            line_meshes = []
-            #grid = pv.StructuredGrid(valx, valy, valz)
-            for j in range(0, Nc*2):
-                # take one line along x (fix j,k=0 here for simplicity)
-                xline = valx[:, j*multi]
-                yline = valy[:, j*multi]
-                zline = valz[:, j*multi]
+                    pts = np.column_stack([xline, yline, zline])
+                    # build a PolyLine
+                    line = pv.Spline(pts, n_points=len(pts))
+                    tube = line.tube(radius=0.005, n_sides=24, capping=True)
+                    line_meshes.append(tube)
 
-                pts = np.column_stack([xline, yline, zline])
-                # build a PolyLine
-                line = pv.Spline(pts, n_points=len(pts))
-                #tube = line.tube(radius=0.005, n_sides=24, capping=True)
-                line_meshes.append(line)
+                for j in range(0, Nc):
+                    # take one line along x (fix j,k=0 here for simplicity)
+                    xline = valx[j*multi, :]
+                    yline = valy[j*multi, :]
+                    zline = valz[j*multi, :]
 
-            for j in range(0, Nc):
-                # take one line along x (fix j,k=0 here for simplicity)
-                xline = valx[j*multi, :]
-                yline = valy[j*multi, :]
-                zline = valz[j*multi, :]
+                    pts = np.column_stack([xline, yline, zline])
+                    # build a PolyLine
+                    line = pv.Spline(pts, n_points=len(pts))
+                    tube = line.tube(radius=0.005, n_sides=20, capping=True)
+                    line_meshes.append(tube)
 
-                pts = np.column_stack([xline, yline, zline])
-                # build a PolyLine
-                line = pv.Spline(pts, n_points=len(pts))
-                #tube = line.tube(radius=0.005, n_sides=24, capping=True)
-                line_meshes.append(line)
-
-            grid = pv.merge(line_meshes)
-            if not np.isnan(cut0[0]):
-                grid  = grid.clip(normal=cutn, origin=cut0)
-            plg.add_mesh(grid, color=grid_color, ambient=0.2,line_width=4)
+                grid = pv.merge(line_meshes)
+                if not np.isnan(cut0[0]):
+                    grid  = grid.clip(normal=cutn, origin=cut0)
+                plg.add_mesh(grid, color=grid_color, ambient=0.2,line_width=4)
+            else:
+                grid = pv.StructuredGrid(valx, valy, valz)
         else:
-            grid = pv.StructuredGrid(valx, valy, valz)
-    else:
-        grid = pv.StructuredGrid(valy, valx, valz)
-    if not multi>1:
-        plg.add_mesh(grid, show_edges=True,style='wireframe', line_width=5,color='k')  # show_edges=True for gridlines
+            grid = pv.StructuredGrid(valy, valx, valz)
+        if not multi>1:
+            plg.add_mesh(grid, show_edges=True,style='wireframe', line_width=5,color=grid_color)  # show_edges=True for gridlines
 
-            #plg.show_grid()  # Add axes grid
+                #plg.show_grid()  # Add axes grid
 
 
 def get_cnm(s1,it,NF=12,bubi=1):
@@ -1328,29 +1710,48 @@ def vis_subdomains(s1,plg,sd, Isd=-1):
             plg.add_mesh(box_mesh, opacity=0.25, show_edges=True, color='grey')
 
 
-def sph_points(s1,it,NSH=8,NLag=2000,bubi=1):
-
-    cnm_path = s1.resultpath + f'/bubble/bub_{bubi:03d}_cnm_pnt.bin'
-
-    with open(cnm_path, 'rb') as fin:
-        A = np.fromfile(fin, dtype=np.float64,offset=4)
+def sph_points(s1,it,NSH=8,NLag=2000,bubi=1, newt=False, from_time=-1):
 
     NF = NSH
-    NL1 = (NF+1)*(NF+2)/2
-    NL = NL1*2
+    if not newt:
+        cnm_path = s1.resultpath + f'/bubble/bub_{bubi:03d}_cnm_pnt.bin'
+        with open(cnm_path, 'rb') as fin:
+            A = np.fromfile(fin, dtype=np.float64,offset=4)
+        NL1 = (NF+1)*(NF+2)/2
+        NL = NL1*2
+        NL = round(NL) + 2
+        Ncof = round ( NL*3 )
+        lA = len(A)
+        maxcoef = lA%Ncof
+        A = A[0:-maxcoef]
+        cnm = np.reshape(A,[-1,Ncof])
+        cnmx = cnm[:,0:NL]
+        cnmy = cnm[:,NL:(2*NL)]
+        cnmz = cnm[:,(2*NL):(3*NL)]
+        NLh = round(NL/2)
+    else:
+        cnm_path = s1.resultpath + f'/bubble/bub_{bubi:03d}_cnm_pnt.bin'
+        with open(cnm_path, 'rb') as fin:
+            A = np.fromfile(fin, dtype=np.float64,offset=4)
+        NL1 = (NF+1)*(NF+2)/2
+        NL = NL1*2
+        NL = round(NL) + 2
+        Ncof = round ( NL*3 ) + 2
+        lA = len(A)
+        maxcoef = lA%Ncof
+        A = A[0:-maxcoef]
+        cnm = np.reshape(A,[-1,Ncof])
+        t0 = cnm[:,0]
+        cnm0 = cnm[:,2:]
+        print(t0)
+        cnmx = cnm0[:,0:NL]
+        cnmy = cnm0[:,NL:(2*NL)]
+        cnmz = cnm0[:,(2*NL):(3*NL)]
+        NLh = round(NL/2)
 
-    NL = round(NL) + 2
-    Ncof = round ( NL*3 )
-
-    lA = len(A)
-    maxcoef = lA%Ncof
-    A = A[0:-maxcoef]
-    cnm = np.reshape(A,[-1,Ncof])
-
-    cnmx = cnm[:,0:NL]
-    cnmy = cnm[:,NL:(2*NL)]
-    cnmz = cnm[:,(2*NL):(3*NL)]
-    NLh = round(NL/2)
+        if from_time>=0:
+            it = np.argmin(np.abs(t0-from_time))
+            print(f"Selected time: {t0[it]} at index {it}")
 
     anmxR = cnmx[ : , 0:NLh           ]
     anmxI = cnmx[ : , NLh:(2*NLh)     ]
@@ -1866,36 +2267,53 @@ def she_mesh_cnm_curvature(s1,cnm,it,NF=12,NLag=10000,switch_xy=True,multi=2,Nc=
 
 from .analyse import fibonacci_points
 
-def sph_points_fibo(s1,it,NSH=8,NLag=2000,bubi=1):
+def sph_points_fibo(s1,it,NF=8,NFi=-1,NLag=2000,bubi=1, newt=False, from_time=-1):
+    NSH = NF
+    if not newt:
+        cnm_path = s1.resultpath + f'/bubble/bub_{bubi:03d}_cnm_pnt.bin'
+        with open(cnm_path, 'rb') as fin:
+            A = np.fromfile(fin, dtype=np.float64,offset=4)
+        NL1 = (NF+1)*(NF+2)/2
+        NL = NL1*2
+        NL = round(NL) + 2
+        Ncof = round ( NL*3 )
+        lA = len(A)
+        maxcoef = lA%Ncof
+        A = A[0:-maxcoef]
+        cnm = np.reshape(A,[-1,Ncof])
+        cnmx = cnm[:,0:NL]
+        cnmy = cnm[:,NL:(2*NL)]
+        cnmz = cnm[:,(2*NL):(3*NL)]
+        NLh = round(NL/2)
+    else:
+        cnm_path = s1.resultpath + f'/bubble/bub_{bubi:03d}_cnm_pnt.bin'
+        with open(cnm_path, 'rb') as fin:
+            A = np.fromfile(fin, dtype=np.float64,offset=4)
+        NL1 = (NF+1)*(NF+2)/2
+        NL = NL1*2
+        NL = round(NL) + 2
+        Ncof = round ( NL*3 ) + 2
+        lA = len(A)
+        maxcoef = lA%Ncof
+        A = A[0:-maxcoef]
+        cnm = np.reshape(A,[-1,Ncof])
+        t0 = cnm[:,0]
+        cnm0 = cnm[:,2:]
+        print(t0)
+        cnmx = cnm0[:,0:NL]
+        cnmy = cnm0[:,NL:(2*NL)]
+        cnmz = cnm0[:,(2*NL):(3*NL)]
+        NLh = round(NL/2)
 
-    cnm_path = s1.resultpath + f'/bubble/bub_{bubi:03d}_cnm_pnt.bin'
+        if from_time>=0:
+            it = np.argmin(np.abs(t0-from_time))
+            print(f"Selected time: {t0[it]} at index {it}")
 
-    with open(cnm_path, 'rb') as fin:
-        A = np.fromfile(fin, dtype=np.float64,offset=4)
-
-    NF = NSH
-    NL1 = (NF+1)*(NF+2)/2
-    NL = NL1*2
-
-    NL = round(NL) + 2
-    Ncof = round ( NL*3 )
-
-    lA = len(A)
-    maxcoef = lA%Ncof
-    A = A[0:-maxcoef]
-    cnm = np.reshape(A,[-1,Ncof])
-
-    cnmx = cnm[:,0:NL]
-    cnmy = cnm[:,NL:(2*NL)]
-    cnmz = cnm[:,(2*NL):(3*NL)]
-    NLh = round(NL/2)
-
+    print(np.shape(cnmx))
     anmxR = cnmx[ : , 0:NLh           ]
     anmxI = cnmx[ : , NLh:(2*NLh)     ]
-
     anmyR = cnmy[ : , 0:NLh           ]
     anmyI = cnmy[ : , NLh:(2*NLh)     ]
-
     anmzR = cnmz[ : , 0:NLh           ]
     anmzI = cnmz[ : , NLh:(2*NLh)     ]
 
@@ -1911,21 +2329,21 @@ def sph_points_fibo(s1,it,NSH=8,NLag=2000,bubi=1):
     #valx = np.sin(TT)*np.cos(PP)
     #valy = np.sin(TT)*np.sin(PP)
     #valz = np.cos(TT)
-
+    if NFi==-1: NFi = NF
     if 1==1:
         valx = np.zeros_like(TT)
         valy = np.zeros_like(TT)
         valz = np.zeros_like(TT)
 
-        Ysh, Ydp, Ydt = compute_spherical_harmonics_fibo(NF, TT, PP )
+        Ysh, Ydp, Ydt = compute_spherical_harmonics_fibo(NFi, TT, PP )
 
         # anm = anmxR[it,:] + 1i * anmxI[it,:]
         # print(np.shape(anm))
         # valxi =  np.sum( * Ysh,1)
         # valyi =  np.sum(complex( anmyR[it,:], anmyI[it,:] ) * Ysh,1)
         # valzi =  np.sum(complex( anmzR[it,:], anmzI[it,:] ) * Ysh,1)
-
-        for n in range(0,NF+1):
+        
+        for n in range(0,NFi+1):
             Zh = round(n*(n+1)/2)
 
             for m in range(0,n+1):

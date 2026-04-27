@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
+import os
 
 
 # --------------------------------------------------
@@ -100,6 +101,7 @@ def get_online_pass(
     _validate_entry(key, entry)
 
     hostname = str(entry["hostname"])
+    sshhost = str(entry["sshhost"])
     port = int(entry["port"])
     username = str(entry["username"])
     remote_file_path = str(entry["remote_file_path"])
@@ -110,6 +112,7 @@ def get_online_pass(
 
     return (
         hostname,
+        sshhost,
         port,
         username,
         remote_file_path,
@@ -133,6 +136,7 @@ def get_online_pass_dict(
 
     result = {
         "hostname": str(entry["hostname"]),
+        "sshhost": str(entry["sshhost"]),
         "port": int(entry["port"]),
         "username": str(entry["username"]),
         "remote_file_path": str(entry["remote_file_path"]),

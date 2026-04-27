@@ -569,8 +569,8 @@ class sim:
         return elli
 
     #Bubble-Data
-    def b(self,i,check=False):
-        bub = bubble(self,i,check=check);
+    def b(self,i,check=False,old_cnm=False):
+        bub = bubble(self,i,check=check,old_cnm=old_cnm);
         return bub
 
 
@@ -713,7 +713,7 @@ class fluid:
 
         if not sim.ssh_pass=='local':
             if not os.path.exists(fluid_path):
-                from .ssh_functions import ssh_get_fluid
+                from ..hpcsync.ssh_functions import ssh_get_fluid
                 print('Download Fluid data via ssh...')
                 ssh_get_fluid(i, sim.ssh_pass, sim.resultpath, sim.rpath)
                 print('...done')
@@ -755,12 +755,16 @@ class fluid:
 #Bubble class
 class bubble:
     #Constructor
-    def __init__(self,sim,i,check=False):
+    def __init__(self,sim,i,check=False,old_cnm=False):
         # Read monitor.dat file
         path = sim.resultpath + '/bubble/bub_binary/bub_' + format(i,"d") + '.npy'
         self.path_sh = sim.resultpath + '/bubble/bub_binary/bub_' + format(i,"d") + '_sh.npy'
         self.spath = sim.resultpath
         boolpath = sim.resultpath + '/bubble/bub_binary/writing.dat'
+        if old_cnm:
+            self.cnm_path = sim.resultpath + f'/bubble/bub_{i:03d}_cnm.bin'
+        else:
+            self.cnm_path = sim.resultpath + f'/bubble/bub_{i:03d}_cnm_pnt.bin'
         if read_bool(boolpath,sim.force_reading):
             print('externen Einlesevorgang erkannt: Warten auf Fertigstellung...')
             while read_bool(boolpath):
@@ -866,6 +870,49 @@ class bubble:
         if X.shape[0] == 1:
             X = X[0]
         return X
+    
+    def Ui(self,ti,I=False):
+            x = np.atleast_1d( self.ui(ti,I=I) )
+            y = np.atleast_1d( self.vi(ti,I=I) )
+            z = np.atleast_1d( self.wi(ti,I=I) )
+            X = np.column_stack([x,y,z])
+            if X.shape[0] == 1:
+                X = X[0]
+            return X
+
+    def get_cnm(self,NF=8):
+        with open(self.cnm_path, 'rb') as fin:
+            A = np.fromfile(fin, dtype=np.float64,offset=4)
+        NL1 = (NF+1)*(NF+2)/2
+        NL = NL1*2
+
+        NL = round(NL) + 2
+        Ncof = round ( NL*3 )
+
+        lA = len(A)
+        maxcoef = lA%Ncof
+        A = A[0:-maxcoef]
+        cnm = np.reshape(A,[-1,Ncof])
+
+        cnmx = cnm[:,0:NL]
+        cnmy = cnm[:,NL:(2*NL)]
+        cnmz = cnm[:,(2*NL):(3*NL)]
+
+        NLh = round(NL/2)
+
+        anmxR = cnmx[ : , 0:NLh           ]
+        anmxI = cnmx[ : , NLh:(2*NLh)     ]
+
+        anmyR = cnmy[ : , 0:NLh           ]
+        anmyI = cnmy[ : , NLh:(2*NLh)     ]
+
+        anmzR = cnmz[ : , 0:NLh           ]
+        anmzI = cnmz[ : , NLh:(2*NLh)     ]
+
+        A = np.concatenate((anmxR[:,1:], anmxI[:,1:], anmyR[:,1:], anmyI[:,1:], anmzR[:,1:], anmzI[:,1:]), axis=1)
+
+
+        return A
 
     def xi(self,ti,I=False):
         if self.check and not I:
@@ -1212,7 +1259,7 @@ class bubble:
     def un(self,j,sim,old=False):
         j = j * self.bnt
         i = self.i
-        fpname = f"/bubble/bubble_fp_un/bub_{i:03d}_fp_un_0{j:05d}.bin"
+        fpname = f"bubble/bubble_fp_un/bub_{i:03d}_fp_un_0{j:05d}.bin"
         pathname = self.spath + '/' + fpname
         if not os.path.exists(pathname):
             ssh_get_files(sim,fpname)
