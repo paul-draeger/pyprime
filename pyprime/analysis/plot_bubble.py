@@ -25,53 +25,6 @@ from .spherical_harmonics_operations import zz
 from .spherical_harmonics_operations import fnm
 
 
-def apcdf_bub(ax,sim,nr_bin,a_bin,r,phi,symetric,combi=[0,0]):
-    rmax = sim.Lx/2
-    rbins = np.linspace(0, rmax , nr_bin)
-    abins = np.linspace(0, np.pi, a_bin)
-    A, R = np.meshgrid(abins, rbins)
-    dr = rmax/nr_bin
-    da = np.pi/a_bin
-    abin = abins[0:-1]+da/2
-    rbin = rbins[0:-1]+dr/2
-    Ab, Rb = np.meshgrid(abin, rbin)
-    dv = da * Rb**2 * dr * np.sin(Ab) * 2 * np.pi
-    CN = 4 * np.pi * rmax**3 / ( 3 * np.size(phi) )
-    hist, _, _ = np.histogram2d(phi, r, bins=(abins, rbins))
-    h = hist.T/dv*CN
-
-    Lref = 1.0
-    #h[h==0] = 1E-2
-    # plot
-    abinp = abin
-    abinp[0] = 0
-    abinp[-1] = np.pi
-    Abp, Rbp = np.meshgrid(abinp, rbin)
-    #R = R / Lref
-    Rbp = Rbp / Lref
-    h[h<1E-2] = 1E-2
-    cmap = plt.cm.RdBu_r  # You can choose any colormap you prefer
-    levels = np.logspace(-2,2,200,base=10)
-    norm = LogNorm(vmin=1/2,vmax=2)
-    pc1 = ax.contourf(Abp, Rbp, h,levels=levels, cmap=cmap,norm=norm)
-
-    ax.set_theta_zero_location("N")
-    ax.set_theta_direction(-1)
-    ax.set_ylabel(f"$ r \: / \: d $")
-    ax.set_xticks([])
-    ax.set_thetamin(0)
-    ax.grid(linestyle='-',color='grey',linewidth = 0.25)
-    norm = LogNorm()
-
-    if symetric and False:
-        ax.set_thetamax(90)
-    else:
-        ax.set_thetamax(180)
-
-    return ax,pc1
-
-
-
 
 def bcont(sim, i, x, value='v', direction='x', Lref = 1,uref=1,legend=False,Fsize=4,ustream=np.zeros(3),streams=False,figformat='svg',colorbar=False,with_bub=True, forVista=False, dpi=100):
     print('Creating Contour Plot of a Slice of the Fluid Field with the bubble')
@@ -1021,6 +974,33 @@ def sph_add_mesh_H(s1,it,plg,NF=12,NFi=-1,NLag=10000,bubi = 1,opa=1,switch_xy=Tr
 
 
 
+def initial_figure(s1,filename,NF=8):
+    import pyvista as pv
+
+    plg = pv.Plotter(off_screen=True,window_size=(1000, 1000))
+    sph_add_mesh(s1,0,plg,NF=NF,NLag=10000,bubi = 1,opa=1,switch_xy=True, grid=True, Nc=10,pLz=False, from_time=0, offx=0, offy=0,multi=3,lam_max = 1.5,grid_color='k',cut0=[np.nan,np.nan,np.nan],cutn=[0,0,0],newt=True,color='white')
+    box = pv.Box(bounds=(0, s1.Lx, 0, s1.Ly, 0, s1.Lz))
+    plg.add_mesh(box, color='k', style='wireframe', line_width=8, opacity=1)
+
+    plg.add_axes(
+        line_width=4,
+        labels_off=False,
+        xlabel='X',
+        ylabel='Y',
+        zlabel='Z',
+        label_size=(0.2, 0.2)
+    )
+
+    plg.camera.focal_point = [s1.Lx/2,s1.Lx/2,s1.Lx/2]
+
+    dx = s1.Lx*3
+    dy = s1.Lx
+    dz = s1.Lx
+
+    plg.camera.position = [s1.Lx/2+dx,s1.Lx/2+dy,s1.Lx/2+dz]
+
+    plg.show(screenshot=filename)
+
 
 def sph_add_mesh(s1,it,plg,NF=12,NFi=-1,NLag=10000,bubi = 1,opa=1,switch_xy=True, grid=True, Nc=10,pLz=False, from_time=-1, offx=0, offy=0,multi=1,lam_max = 1.5,grid_color='k',cut0=[np.nan,np.nan,np.nan],cutn=[0,0,0],newt=False,color='white'):
     import pyvista as pv
@@ -1710,7 +1690,7 @@ def vis_subdomains(s1,plg,sd, Isd=-1):
             plg.add_mesh(box_mesh, opacity=0.25, show_edges=True, color='grey')
 
 
-def sph_points(s1,it,NSH=8,NLag=2000,bubi=1, newt=False, from_time=-1):
+def sph_points(s1,it,NSH=8,NLag=2000,bubi=1, newt=False, from_time=-1, with_norm=False):
 
     NF = NSH
     if not newt:
@@ -1789,6 +1769,14 @@ def sph_points(s1,it,NSH=8,NLag=2000,bubi=1, newt=False, from_time=-1):
     valy = np.zeros_like(TT)
     valz = np.zeros_like(TT)
 
+    valxT = np.zeros_like(TT)
+    valyT = np.zeros_like(TT)
+    valzT = np.zeros_like(TT)
+
+    valxP = np.zeros_like(TT)
+    valyP = np.zeros_like(TT)
+    valzP = np.zeros_like(TT)
+
     Ysh, Ydp, Ydt = compute_spherical_harmonics(NF, TT, PP, 1 ,1 )
 
     # anm = anmxR[it,:] + 1i * anmxI[it,:]
@@ -1801,23 +1789,63 @@ def sph_points(s1,it,NSH=8,NLag=2000,bubi=1, newt=False, from_time=-1):
         Zh = round(n*(n+1)/2)
 
         for m in range(0,n+1):
-           zz = round( n*(n+1)/2 + m )
+            zz = round( n*(n+1)/2 + m )
 
 #               Ysh1 = sph_harm(m, n, TT, PP)
-           #Ysh, Ydp, Ydt = compute_spherical_harmonics(NF, TT, PP, n ,m)
-           valxi =  complex( anmxR[it,zz], anmxI[it,zz] ) * Ysh[zz,:,:]
-           valyi =  complex( anmyR[it,zz], anmyI[it,zz] ) * Ysh[zz,:,:]
-           valzi =  complex( anmzR[it,zz], anmzI[it,zz] ) * Ysh[zz,:,:]
+            #Ysh, Ydp, Ydt = compute_spherical_harmonics(NF, TT, PP, n ,m)
+            valxi =  complex( anmxR[it,zz], anmxI[it,zz] ) * Ysh[zz,:,:]
+            valyi =  complex( anmyR[it,zz], anmyI[it,zz] ) * Ysh[zz,:,:]
+            valzi =  complex( anmzR[it,zz], anmzI[it,zz] ) * Ysh[zz,:,:]
 
-           valx += np.real( valxi )
-           valy += np.real( valyi )
-           valz += np.real( valzi )
+            valx += np.real( valxi )
+            valy += np.real( valyi )
+            valz += np.real( valzi )
 
+            if with_norm:
+                valxiT =  complex( anmxR[it,zz], anmxI[it,zz] ) *Ydt[zz,:,:]#* Ysh
+                valyiT =  complex( anmyR[it,zz], anmyI[it,zz] ) *Ydt[zz,:,:]#* Ysh
+                valziT =  complex( anmzR[it,zz], anmzI[it,zz] ) *Ydt[zz,:,:]#* Ysh
+
+                valxiP =  complex( anmxR[it,zz], anmxI[it,zz] ) *Ydp[zz,:,:]#* Ysh
+                valyiP =  complex( anmyR[it,zz], anmyI[it,zz] ) *Ydp[zz,:,:]#* Ysh
+                valziP =  complex( anmzR[it,zz], anmzI[it,zz] ) *Ydp[zz,:,:]#* Ysh
+
+                valxT += np.real( valxiT )
+                valyT += np.real( valyiT )
+                valzT += np.real( valziT )
+
+                valxP += np.real( valxiP )
+                valyP += np.real( valyiP )
+                valzP += np.real( valziP )
+           
     valx = valx*2
     valy = valy*2
     valz = valz*2
+
+    if with_norm:
+        valxT = valxT*2
+        valyT = valyT*2
+        valzT = valzT*2
+
+        valxP = valxP*2
+        valyP = valyP*2
+        valzP = valzP*2
+
+
     X = np.column_stack([valx.flatten(),valy.flatten(),valz.flatten()])
-    return X
+    
+    if with_norm:    
+        N = np.zeros_like(X)
+        for k in range(0,len(X)):
+            crossP = np.cross( [valxT.flatten()[k], valyT.flatten()[k], valzT.flatten()[k]], [valxP.flatten()[k], valyP.flatten()[k], valzP.flatten()[k]] )
+            norm_crossP = np.linalg.norm(crossP)
+            if norm_crossP > 1e-8:  # Avoid division by zero
+                N[k,:] = crossP / norm_crossP  # Normalized normal vector
+        
+        
+        return X,N
+    else:
+        return X
 
 
 
@@ -2367,29 +2395,50 @@ def sph_points_fibo(s1,it,NF=8,NFi=-1,NLag=2000,bubi=1, newt=False, from_time=-1
 
 from .analyse import fibonacci_sphere_pole_clustered
 
-def sph_points_z(s1,it,NSH=8,bubi=1,NLag=2000,beta=20):
 
-    cnm_path = s1.resultpath + f'/bubble/bub_{bubi:03d}_cnm_pnt.bin'
-
-    with open(cnm_path, 'rb') as fin:
-        A = np.fromfile(fin, dtype=np.float64,offset=4)
-
+def sph_points_z(s1,it,NSH=8,bubi=1,NLag=2000,beta=20, newt=False, from_time=-1):
     NF = NSH
-    NL1 = (NF+1)*(NF+2)/2
-    NL = NL1*2
+    if not newt:
+        cnm_path = s1.resultpath + f'/bubble/bub_{bubi:03d}_cnm_pnt.bin'
+        with open(cnm_path, 'rb') as fin:
+            A = np.fromfile(fin, dtype=np.float64,offset=4)
+        NL1 = (NF+1)*(NF+2)/2
+        NL = NL1*2
+        NL = round(NL) + 2
+        Ncof = round ( NL*3 )
+        lA = len(A)
+        maxcoef = lA%Ncof
+        A = A[0:-maxcoef]
+        cnm = np.reshape(A,[-1,Ncof])
+        cnmx = cnm[:,0:NL]
+        cnmy = cnm[:,NL:(2*NL)]
+        cnmz = cnm[:,(2*NL):(3*NL)]
+        NLh = round(NL/2)
+    else:
+        cnm_path = s1.resultpath + f'/bubble/bub_{bubi:03d}_cnm_pnt.bin'
+        with open(cnm_path, 'rb') as fin:
+            A = np.fromfile(fin, dtype=np.float64,offset=4)
+        NL1 = (NF+1)*(NF+2)/2
+        NL = NL1*2
+        NL = round(NL) + 2
+        Ncof = round ( NL*3 ) + 2
+        lA = len(A)
+        maxcoef = lA%Ncof
+        A = A[0:-maxcoef]
+        cnm = np.reshape(A,[-1,Ncof])
+        t0 = cnm[:,0]
+        cnm0 = cnm[:,2:]
+        
+        cnmx = cnm0[:,0:NL]
+        cnmy = cnm0[:,NL:(2*NL)]
+        cnmz = cnm0[:,(2*NL):(3*NL)]
+        NLh = round(NL/2)
 
-    NL = round(NL) + 2
-    Ncof = round ( NL*3 )
+        if from_time>=0:
+            it = np.argmin(np.abs(t0-from_time))
+            print(t0)
+            print(f"Selected time: {t0[it]} at index {it}")
 
-    lA = len(A)
-    maxcoef = lA%Ncof
-    A = A[0:-maxcoef]
-    cnm = np.reshape(A,[-1,Ncof])
-
-    cnmx = cnm[:,0:NL]
-    cnmy = cnm[:,NL:(2*NL)]
-    cnmz = cnm[:,(2*NL):(3*NL)]
-    NLh = round(NL/2)
 
     anmxR = cnmx[ : , 0:NLh           ]
     anmxI = cnmx[ : , NLh:(2*NLh)     ]

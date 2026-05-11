@@ -291,14 +291,116 @@ def ssh_download_sim(
     return str(lpath), rpath
 
 
+from pathlib import Path
+
+from pathlib import Path
+
+
+from pathlib import Path
+import subprocess
+
+
+def ssh_download_basilisk_sim(
+    path,
+    ssh_pass,
+    ssh_download_fluid: bool = True,
+    ssh_update: bool = True,
+):
+    remote = _get_remote_info(ssh_pass)
+
+    remote_file_path = remote["remote_file_path"]
+    local_filesystem = Path(remote["local_filesystem"])
+    local_filesystem.mkdir(parents=True, exist_ok=True)
+
+    path_id_dict = local_filesystem / "id_dict.json"
+    new_mirror = False
+
+    if path_id_dict.exists():
+        id_dict = load_dict_from_file(path_id_dict)
+
+        if path in id_dict:
+            print("Basilisk simulation was already downloaded. Checking for updates...")
+            lpath = local_filesystem / id_dict[path]
+        else:
+            new_id = (
+                1 if len(id_dict) == 0
+                else int(extract_numeric(list(id_dict.values())[-1])) + 1
+            )
+
+            local_name = f"basilisk_results_{new_id}"
+            lpath = local_filesystem / local_name
+            id_dict[path] = local_name
+
+            save_dict_to_file(id_dict, path_id_dict)
+            print(f"Created a new Basilisk mirror, ID = {new_id}")
+            new_mirror = True
+
+    else:
+        id_dict = {path: "basilisk_results_1"}
+        save_dict_to_file(id_dict, path_id_dict)
+
+        lpath = local_filesystem / "basilisk_results_1"
+        print("Created first Basilisk mirror, ID = 1")
+        new_mirror = True
+
+    rpath = str(Path(remote_file_path) / path)
+    lpath.mkdir(parents=True, exist_ok=True)
+
+    if ssh_update or new_mirror:
+        print("Updating local Basilisk simulation data...")
+
+        download_directory(
+            remote_path=rpath,
+            local_path=lpath,
+            ssh_pass=ssh_pass,
+            include_basilisk_output=ssh_download_fluid,
+        )
+
+        # --------------------------------------------------------
+        # Fix pvtu paths
+        # --------------------------------------------------------
+        if ssh_download_fluid:
+            output_path = lpath / "output"
+
+            if output_path.exists():
+                try:
+                    subprocess.run(
+                        "sed -i 's|output/fields_|fields_|g' fields_*.pvtu",
+                        shell=True,
+                        cwd=output_path,
+                        check=True,
+                    )
+                    print("Updated pvtu file paths")
+                except subprocess.CalledProcessError as e:
+                    print(f"sed failed: {e}")
+
+        print(f"Basilisk data checked. Local directory is {lpath}")
+
+    return str(lpath), rpath
+
+
+
 def ssh_get_fluid(i, ssh_pass, lpath, rpath):
     download_fluid(rpath, lpath, ssh_pass, I=i)
 
 
-def download_directory(remote_path, local_path, ssh_pass, pics: bool = False, bub_fp: bool = False):
+from pathlib import Path
+import subprocess
+from tqdm import tqdm
+
+
+def download_directory(
+    remote_path,
+    local_path,
+    ssh_pass,
+    pics: bool = False,
+    bub_fp: bool = False,
+    excludes_extra=None,
+    include_basilisk_output: bool = True,
+):
     remote = _get_remote_info(ssh_pass, output=False)
 
-    hostname = remote["hostname"]   # dataport for rsync/scp
+    hostname = remote["hostname"]
     port = remote["port"]
     username = remote["username"]
 
@@ -363,6 +465,25 @@ def download_directory(remote_path, local_path, ssh_pass, pics: bool = False, bu
 
     excludes = [f"*{name}*" for name in exclude_names]
 
+    # ------------------------------------------------------------
+    # Additional user-defined excludes
+    # Example:
+    # excludes_extra=["output/*.vtu", "output/*.pvtu"]
+    # ------------------------------------------------------------
+    if excludes_extra is not None:
+        excludes += list(excludes_extra)
+
+    # ------------------------------------------------------------
+    # Basilisk-specific switch
+    # If False, skip large VTK output files.
+    # This still keeps e.g. out_slurm_*.log and other small files.
+    # ------------------------------------------------------------
+    if not include_basilisk_output:
+        excludes += [
+            "output/*.vtu",
+            "output/*.pvtu",
+        ]
+
     try:
         _rsync(
             remote_source=remote_path,
@@ -386,8 +507,10 @@ def download_directory(remote_path, local_path, ssh_pass, pics: bool = False, bu
 
         for fname in tqdm(extra_files, desc="Extra files", unit="file"):
             local_file = local_path / fname
+
             if not local_file.exists():
                 remote_file = str(Path(remote_parent) / fname)
+
                 try:
                     print(f"Downloading missing extra file: {fname}")
                     _scp_download_file(
@@ -397,11 +520,13 @@ def download_directory(remote_path, local_path, ssh_pass, pics: bool = False, bu
                         port=port,
                         username=username,
                     )
+
                 except subprocess.CalledProcessError:
                     print(f"Could not download optional file: {fname}")
 
     except subprocess.CalledProcessError as e:
         print(f"rsync/scp failed: {e}")
+
     except Exception as e:
         print(f"Unexpected error: {e}")
 

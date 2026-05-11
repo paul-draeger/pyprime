@@ -17,15 +17,108 @@ import shutil
 import time
 from ..hpcsync.ssh_functions import ssh_get_files
 from ..hpcsync.ssh_functions import ssh_download_sim
+from ..hpcsync.ssh_functions import ssh_download_basilisk_sim
 import re
 from .physics import prop
 import os
+from pathlib import Path
+
+
+
+class bas:
+    """Simulation object containing data for a single run."""
+
+    def __init__(
+        self,
+        path,
+        ssh_pass="none",
+        ssh_path="local",
+        ssh_download_fluid=False,
+        ssh_update=True,
+    ):
+        rpath = ''
+        if not ssh_pass=='local':
+            #if newbubble==1 or newbinary==1:
+                #print('HEY')
+            path, rpath = ssh_download_basilisk_sim(path,ssh_pass,ssh_download_fluid, ssh_update)
+
+        self.ssh_fluid = ssh_download_fluid
+        self.ssh_pass = ssh_pass
+        print('Creating Simulation-Object ...')
+        #Read info.dat File
+        print('1/3 Reading infos.dat')
+        path_obj = Path(path)
+        log_files = sorted(path_obj.glob("out_slurm_*.log"))
+        if not log_files:
+            raise FileNotFoundError(f"No out_slurm_*.log found in {path}")
+        # take newest (safer)
+        log_file = max(log_files, key=lambda p: p.stat().st_mtime)
+        with open(log_file, "r") as f:
+            lines = f.readlines()
+        # robust filter (handles spaces, negatives, floats)
+        data_lines = [
+            line for line in lines
+            if line.strip() and line.strip()[0] in "0123456789-."
+        ]
+        data = np.array([
+            [float(num) for num in line.split()]
+            for line in data_lines
+        ])
+
+
+
+        self.resultpath = path
+        self.rpath = rpath
+        self.tf = data[:, 0]
+        self.tei = len(self.tf)
+        self.tee = max(self.tf)
+        self.tfa = min(self.tf)
+        
+        #self.dt = self.tf[1]-self.tf[0]
+        nt0 = np.ones(len(self.tf))
+        nt = np.cumsum(nt0)
+        self.nt = nt
+        
+        self.u = data[:, 5]
+        self.v = data[:, 6]
+        self.w = data[:, 7]
+
+        self.x = data[:, 1]
+        self.y = data[:, 2]
+        self.z = data[:, 3]
+
+
 
 
 class sim:
-    # sim-Object contains data related to a single simulation
-    def __init__(self, path, reduce_tell=3,reduce_tbub=1, bNr=1, d_b=-1, read_ell=True, ell_type='bubble', newbinary=1, newbubble=1, onlyInfo=False, force_reading=False, no_cmn=False,ssh_pass='none',ssh_path='local', ssh_download_fluid=False, ssh_update=True, get_bub_fp=False,with_coll_force=False,bnt_plot=50,eNr=0,noslip=False, nogridconv=False, extra_var_bub=False):
+    """Simulation object containing data for a single run."""
 
+    def __init__(
+        self,
+        path,
+        reduce_tell=3,
+        reduce_tbub=1,
+        bNr=1,
+        d_b=-1,
+        read_ell=True,
+        ell_type="bubble",
+        newbinary=1,
+        newbubble=0,
+        onlyInfo=False,
+        force_reading=False,
+        no_cmn=False,
+        ssh_pass="none",
+        ssh_path="local",
+        ssh_download_fluid=False,
+        ssh_update=True,
+        get_bub_fp=False,
+        with_coll_force=False,
+        bnt_plot=50,
+        eNr=0,
+        noslip=False,
+        nogridconv=False,
+        extra_var_bub=False,
+    ):
         # path        - path to the simulation result dir.
         # reduce_tell - Every nth time step from ellipsoid monitor files is
         #               saved in numpy binary.
