@@ -65,7 +65,6 @@ def _get_remote_info(ssh_pass, output: bool = False):
     if len(info) == 5:
         hostname, port, username, remote_file_path, local_filesystem = info
         sshhost = hostname
-        print('Hello, HERE')
     elif len(info) == 6:
         hostname, sshhost, port, username, remote_file_path, local_filesystem = info
     else:
@@ -92,7 +91,7 @@ def _ensure_commands_available() -> None:
 
 
 def _run_command(cmd: list[str]) -> None:
-    print("Running:", " ".join(shlex.quote(c) for c in cmd))
+    #print("Running:", " ".join(shlex.quote(c) for c in cmd))
 
     proc = subprocess.Popen(
         cmd,
@@ -138,8 +137,8 @@ def _rsync(
 
     ssh_cmd = (
         f"ssh -p {port} "
-        f"-o StrictHostKeyChecking=no "
-        f"-o UserKnownHostsFile=/dev/null"
+        f"-o StrictHostKeyChecking=accept-new "
+        f"-o UserKnownHostsFile=~/.ssh/known_hosts"
     )
 
     cmd = [
@@ -186,8 +185,7 @@ def _scp_download_file(
     cmd = [
         "scp",
         "-P", str(port),
-        "-o", "StrictHostKeyChecking=no",
-        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", "StrictHostKeyChecking=accept-new",
         f"{username}@{hostname}:{remote_file}",
         str(local_file),
     ]
@@ -281,7 +279,7 @@ def ssh_download_sim(
             ssh_pass=ssh_pass,
             bub_fp=bub_fp,
         )
-        print(f"SSH data checked. Local directory is {lpath}")
+        print(f"\nSSH data checked. Local directory is {lpath}")
 
         if ssh_download_fluid:
             download_fluid(rpath, lpath, ssh_pass, I=0)

@@ -12,7 +12,4 @@ __version__ = "1.0.0"
 #   pp.analysis.sim(...)
 #   pp.misc.download(...)
 
-from .analysis.analyse import *
-from .analysis.physics import *
 from .analysis.sim import *
-from .analysis.plot_bubble import *
