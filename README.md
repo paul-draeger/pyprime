@@ -17,7 +17,7 @@ Before the Backend can be used, the user has to configure a "remote_config.json"
   Example: Horse filesystem @ZIH,TU Dresden
   1. Creat a SSH key pair (https://compendium.hpc.tu-dresden.de/access/ssh_login/)
   2. Add an entry to the "remote_config.json".
-    ```
+```
       "barnardExample": {
         "hostname": "dataport1.hpc.tu-dresden.de",
         "sshhost": "login1.barnard.hpc.tu-dresden.de",
@@ -26,9 +26,9 @@ Before the Backend can be used, the user has to configure a "remote_config.json"
         "remote_file_path": "/path/to/workspace/",
         "local_filesystem": "/path/to/local/mirror/"
       }
-    ``` 
+``` 
   4. Set your ZIH username (e.g. s*******)
-  5. Set the path to your workspace. Add "/" at the end of the path.
+  5. Set the path to your workspace. Add ```/``` at the end of the path.
   6. Set the local mirror directory. Make sure it has enough space (using an external SSD drive is recommended).
 
 ## Usage
@@ -41,8 +41,8 @@ import pyprime as pp
 s1 = pp.sim("path/to/results/folder/in/your/workspace",ssh_pass="barnardExample",ssh_update=update,newbinary=True)
 ```
 This will create a local mirror and construct the object "s1". Running this once will allow using the following options to save time. 
-- Set "ssh_update=False" to load simulation data from the mirror directory without updating it.
-- Set "newbinary=False" to reload monitoring files from numpy-binary format without updating them. 
+- Set ```ssh_update=False``` to load simulation data from the mirror directory without updating it.
+- Set ```newbinary=False``` to reload monitoring files from numpy-binary format without updating them. 
 4. Access "ellipsoid" related data
 ```python
 If=1
