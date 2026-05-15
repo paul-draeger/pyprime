@@ -4,19 +4,48 @@ Python package for the pyprime analysis library.
 
 ## Install
 
+2. Add the Package to your environment 
 ```bash
 python -m pip install -e . --no-deps
 ```
-using `--no-deps` is recommended within conda environments.
+using `--no-deps` is recommended.
 
-## Package layout
-
-- `pyprime.analysis`
-- `pyprime.misc`
+## Configuration
+Before the Backend can be used, the user has to configure a "remote_config.json".
+1. Copy the "remote_config.example.json" and rename it to "remote_config.json".
+2. Configure a SSH connection and mirror directory
+  Example: Horse filesystem @ZIH,TU Dresden
+  1. Creat a SSH key pair (https://compendium.hpc.tu-dresden.de/access/ssh_login/)
+  2. Add an entry to the "remote_config.json".
+    ```
+      "barnardExample": {
+        "hostname": "dataport1.hpc.tu-dresden.de",
+        "sshhost": "login1.barnard.hpc.tu-dresden.de",
+        "port": 22,
+        "username": "YOUR_USERNAME",
+        "remote_file_path": "/path/to/workspace/",
+        "local_filesystem": "/path/to/local/mirror/"
+      }
+  3. Set your ZIH username (e.g. s*******)
+  4. Set the path to your workspace. Add "/" at the end of the path.
+  5. Set the local mirror directory. Make sure it has enough space (using an external SSD drive is recommended).
 
 ## Usage
-
+1. Import the package
 ```python
-import pyprime
-from pyprime.analysis import sim
+import pyprime as pp
+```  
+3. Create a "sim" object
+```python
+s1 = pp.sim("path/to/results/folder/in/your/workspace",ssh_pass="barnardExample",ssh_update=update,newbinary=True)
 ```
+This will create a local mirror and construct the object "s1". Running this once will allow using the following options to save time. 
+- set "ssh_update=False" to load simulation data from the mirror directory without updating it.
+- set "newbinary=False" to reload monitoring files from numpy-binary format without updating them. 
+4. Access "ellipsoid" related data
+```python
+Ie=1
+e1 = s1.e(Ie)
+```
+this will create an "ellipsoid" object. "Ie" is the ellipsoid ID starting 
+
