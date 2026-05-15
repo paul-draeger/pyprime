@@ -1,6 +1,5 @@
 # pyprime
-
-Python package for the pyprime analysis library.
+Python backend for the analysis of simulation data generated with PRIME, a framework for phase-resolved direct numerical simulations of various configurations.
 
 ## Installation
 
