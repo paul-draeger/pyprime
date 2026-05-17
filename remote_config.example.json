@@ -7,3 +7,10 @@
     "local_filesystem": "/path/to/local/mirror/"
   }
 }
+
+# For barnard (2): "hostname": "dataport2.hpc.tu-dresden.de",
+# For barnard (3): "hostname": "dataport3.hpc.tu-dresden.de",
+# Login Nodes might work too but are not recommended.
+
+# For mtblanc:     "hostname": "141.30.240.180",
+# For mttanneberg: "hostname": "141.30.240.186",
