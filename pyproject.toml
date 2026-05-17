@@ -16,12 +16,7 @@ dependencies = [
   "matplotlib>=3.10,<3.11",
   "numpy>=1.26,<2.0",
   "pandas>=3.0,<3.1",
-  "paramiko>=4.0,<4.1",
-  "pyvista>=0.47,<0.48",
   "scipy>=1.16,<1.17",
-  "scp>=0.15,<0.16",
-  "Shapely>=2.1,<2.2",
-  "sympy>=1.14,<1.15",
   "tqdm>=4.67,<5.0",
 ]
 
