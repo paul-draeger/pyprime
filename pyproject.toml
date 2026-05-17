@@ -10,14 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [
-  { name = "PyPrime Authors", email = "info@example.com" },
-]
-dependencies = [
-  "matplotlib>=3.10,<3.11",
-  "numpy>=1.26,<2.0",
-  "pandas>=3.0,<3.1",
-  "scipy>=1.16,<1.17",
-  "tqdm>=4.67,<5.0",
+  { name = "Paul Dräger", email = "paul_ansgar.draeger@mailbox.tu-dresden.de" },
 ]
 
 [tool.setuptools]
