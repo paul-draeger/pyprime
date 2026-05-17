@@ -2,12 +2,24 @@
 Python backend for the analysis of simulation data generated with PRIME, a framework for phase-resolved direct numerical simulations of various configurations.
 
 ## Installation
+1. Clone the repository
+
+2. Create a conda environment
+   ```
+   conda create -n pyprime_env python=3.10 pip
+   conda activate pyprime_env
+   conda install numpy
+   conda install pandas
+   conda install scipy
+   conda install tqdm
+   ```
+Make sure the required packages are installed if an existing environment is used.
 
 2. Add the Package to your environment 
 ```bash
-python -m pip install -e . --no-deps
+python -m pip install -e ./path/to/cloned/repository/named/pyprime --no-deps
 ```
-using `--no-deps` is recommended.
+using `--no-deps` is recommended. 
 
 ## Configuration
 Before the Backend can be used, the user has to configure a `remote_config.json` file.
