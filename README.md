@@ -29,9 +29,9 @@ Before the Backend can be used, the user has to configure a `remote_config.json`
 1. Copy the `remote_config.example.json` file and rename it to `remote_config.json`.
 2. Configure an SSH connection and mirror directory.
 
-  Example: Horse filesystem @ZIH,TU Dresden
-  2a. Create a SSH key pair (https://compendium.hpc.tu-dresden.de/access/ssh_login/)
-  2b. Add an entry to the `remote_config.json`.
+Example: Horse filesystem @ZIH,TU Dresden
+2a. Create a SSH key pair (https://compendium.hpc.tu-dresden.de/access/ssh_login/)
+2b. Add an entry to the `remote_config.json`.
 ```
       "barnardExample": {
         "hostname": "dataport1.hpc.tu-dresden.de",
@@ -42,9 +42,9 @@ Before the Backend can be used, the user has to configure a `remote_config.json`
         "local_filesystem": "/path/to/local/mirror/"
       }
 ``` 
-  2c. Set your ZIH username (e.g. s*******)
-  2d. Set the path to your workspace. Add `/` at the end of the path.
-  2e. Set the local mirror directory. Make sure it has enough space (using an external SSD drive is recommended).
+2c. Set your ZIH username (e.g. s*******)
+2d. Set the path to your workspace. Add `/` at the end of the path.
+2e. Set the local mirror directory. Make sure it has enough space (using an external SSD drive is recommended).
 
 ## Usage
 1. Import the package
