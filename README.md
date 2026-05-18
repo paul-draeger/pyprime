@@ -52,8 +52,7 @@ import pyprime as pp
 ```  
 3. Create a "sim" object
 ```python
-update = True
-s1 = pp.sim("path/to/results/folder/in/your/workspace",ssh_pass="barnardExample",ssh_update=update,newbinary=True)
+s1 = pp.sim("path/to/results/folder/in/your/workspace",ssh_pass="barnardExample",ssh_update=True,newbinary=True)
 ```
 This will create a local mirror and construct the object `s1`. Running this once will allow using the following options to save time. 
 - Set `ssh_update=False` to load simulation data from the mirror directory without updating it.
@@ -84,6 +83,7 @@ Ie=1
 e1 = s1.e(Ie)
 ```
 This will create an `ellipsoid` object. `Ie` is the ellipsoid ID starting at 1.
+
 6. Access "bubble" related data
 ```python
 Ib=1
