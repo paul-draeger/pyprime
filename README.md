@@ -18,7 +18,7 @@ Python backend for the analysis of simulation data generated with PRIME, a frame
    ```
 Make sure the required packages are installed if an existing environment is used.
 
-2. Add the Package to your environment 
+4. Add the Package to your environment 
 ```bash
 python -m pip install -e ./path/to/cloned/repository/named/pyprime --no-deps
 ```
@@ -41,23 +41,23 @@ Before the Backend can be used, the user has to configure a `remote_config.json`
         "local_filesystem": "/path/to/local/mirror/"
       }
 ``` 
-  4. Set your ZIH username (e.g. s*******)
-  5. Set the path to your workspace. Add `/` at the end of the path.
-  6. Set the local mirror directory. Make sure it has enough space (using an external SSD drive is recommended).
+  3. Set your ZIH username (e.g. s*******)
+  4. Set the path to your workspace. Add `/` at the end of the path.
+  5. Set the local mirror directory. Make sure it has enough space (using an external SSD drive is recommended).
 
 ## Usage
 1. Import the package
 ```python
 import pyprime as pp
 ```  
-3. Create a "sim" object
+2. Create a "sim" object
 ```python
 s1 = pp.sim("path/to/results/folder/in/your/workspace",ssh_pass="barnardExample",ssh_update=True,newbinary=True)
 ```
 This will create a local mirror and construct the object `s1`. Running this once will allow using the following options to save time. 
 - Set `ssh_update=False` to load simulation data from the mirror directory without updating it.
 - Set `newbinary=False` to reload monitoring files from `.npy`-format without updating them. 
-4. Access "ellipsoid" related data
+3. Access "ellipsoid" related data
 ```python
 If=1
 f1 = s1.f(If)
@@ -77,14 +77,14 @@ Zu = s1.Zu
 ```
 The meshgrid consits of the matrices `Xu`,`Yu`,`Zu`. Here, `u` denotes the grid for the u-velocity, since PRIME uses a staggered grid. Equivalently, `Xv`,`Xw`,... are available. The center coordinates are stored as `Xp`,`Yp`,`Zp`. 
 
-5. Access "ellipsoid" related data
+4. Access "ellipsoid" related data
 ```python
 Ie=1
 e1 = s1.e(Ie)
 ```
 This will create an `ellipsoid` object. `Ie` is the ellipsoid ID starting at 1.
 
-6. Access "bubble" related data
+5. Access "bubble" related data
 ```python
 Ib=1
 b1 = s1.b(Ib)
