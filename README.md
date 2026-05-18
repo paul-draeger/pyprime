@@ -3,8 +3,11 @@ Python backend for the analysis of simulation data generated with PRIME, a frame
 
 ## Installation
 1. Clone the repository
+   ```
+   git clone https://github.com/paul-draeger/pyprime
+   ```
 
-2. Create a conda environment
+3. Create a conda environment
    ```
    conda create -n pyprime_env python=3.10 pip
    conda activate pyprime_env
