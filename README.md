@@ -52,6 +52,7 @@ import pyprime as pp
 ```  
 3. Create a "sim" object
 ```python
+update = True
 s1 = pp.sim("path/to/results/folder/in/your/workspace",ssh_pass="barnardExample",ssh_update=update,newbinary=True)
 ```
 This will create a local mirror and construct the object `s1`. Running this once will allow using the following options to save time. 
