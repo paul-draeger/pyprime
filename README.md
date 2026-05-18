@@ -30,6 +30,7 @@ Before the Backend can be used, the user has to configure a `remote_config.json`
 2. Configure an SSH connection and mirror directory.
 
 Example: Horse filesystem @ZIH,TU Dresden
+
 3. Create a SSH key pair (https://compendium.hpc.tu-dresden.de/access/ssh_login/)
 4. Add an entry to the `remote_config.json`.
 ```
